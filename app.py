@@ -141,6 +141,15 @@ def vote(report_id):
     })
 
 
-if __name__ == "__main__":
+# Create the database tables when running on Render
+if os.environ.get("DATABASE_URL"):
     init_db()
-    app.run(host="0.0.0.0", port=5000, debug=True)
+
+
+if __name__ == "__main__":
+
+    app.run(
+        host="0.0.0.0",
+        port=5000,
+        debug=True
+    )
