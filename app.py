@@ -1,6 +1,7 @@
 from flask import Flask, render_template, request, jsonify
-import sqlite3
-
+import os
+import psycopg2
+from psycopg2.extras import RealDictCursor
 app = Flask(__name__)
 
 
