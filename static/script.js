@@ -225,6 +225,17 @@ function vote(reportId, voteType) {
 
         alert(data.message);
 
+
+
+
+        
+var header = document.getElementById("header");
+
+map.on("click", function() {
+
+    header.classList.toggle("hidden");
+
+});
         loadReports();
 
     });
