@@ -32,5 +32,9 @@ header p {
 
 #map {
     width: 100%;
-    height: calc(100vh - 100px);
+    height: 70vh;
+}
+
+#map.fullscreen {
+    height: 100vh;
 }
