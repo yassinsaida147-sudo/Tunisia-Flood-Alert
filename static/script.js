@@ -231,19 +231,22 @@ function vote(reportId, voteType) {
         
 var header = document.getElementById("header");
 
-map.on('click', function(event) {
+map.on("click", function() {
 
-    var header = document.getElementById("header");
+    header.classList.toggle("hidden");
 
-    header.classList.add("hidden");
-    map.classList.add("fullscreen");
-
-    var latitude = event.latlng.lat;
-    var longitude = event.latlng.lng;
-
-    // your popup code continues here...
 });
+        loadReports();
+
+    });
+}
 
 
 
 var header = document.getElementById("header");
+
+map.on("click", function() {
+
+    header.classList.toggle("hidden");
+
+});
