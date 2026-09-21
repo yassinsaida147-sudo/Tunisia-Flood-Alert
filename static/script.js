@@ -36,8 +36,6 @@ loadReports();
 // When the user clicks the map
 map.on('click', function(event) {
 
-    
-
     var latitude = event.latlng.lat;
     var longitude = event.latlng.lng;
 
@@ -229,3 +227,16 @@ function vote(reportId, voteType) {
 
 
 
+
+        
+var header = document.getElementById("header");
+
+map.on("click", function() {
+
+    header.classList.toggle("hidden");
+
+});
+        loadReports();
+
+    });
+}
