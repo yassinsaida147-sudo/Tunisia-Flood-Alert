@@ -17,6 +17,34 @@ L.tileLayer('https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png', {
 // ==============================
 // MARKERS
 // ==============================
+// ==============================
+// CREATE COLORED MARKER
+// ==============================
+
+function createMarkerIcon(color) {
+
+    return L.divIcon({
+
+        className: "",
+
+        html: `
+            <div style="
+                background-color: ${color};
+                width: 25px;
+                height: 25px;
+                border-radius: 50%;
+                border: 3px solid white;
+                box-shadow: 0 0 5px rgba(0,0,0,0.5);
+            "></div>
+        `,
+
+        iconSize: [31, 31],
+
+        iconAnchor: [15, 15]
+
+    });
+
+}
 
 var reportMarkers = [];
 
