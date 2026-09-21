@@ -39,7 +39,6 @@ function getVoterId() {
     return voterId;
 }
 
-
 var voterId = getVoterId();
 
 
@@ -56,10 +55,22 @@ loadReports();
 
 map.on('click', function(event) {
 
-    // Hide the header
+    // Hide header
     var header = document.getElementById("header");
 
     header.classList.add("hidden");
+
+
+    // Make map full screen
+    var mapElement = document.getElementById("map");
+
+    mapElement.classList.add("fullscreen");
+
+
+    // Tell Leaflet the map size changed
+    setTimeout(function() {
+        map.invalidateSize();
+    }, 400);
 
 
     // Get coordinates
@@ -116,11 +127,7 @@ function createReport(latitude, longitude) {
     .then(response => {
 
         if (!response.ok) {
-
-            throw new Error(
-                "Server error: " + response.status
-            );
-
+            throw new Error("Server error: " + response.status);
         }
 
         return response.json();
@@ -139,14 +146,9 @@ function createReport(latitude, longitude) {
 
     .catch(error => {
 
-        console.error(
-            "Create report error:",
-            error
-        );
+        console.error("Create report error:", error);
 
-        alert(
-            "Could not create the report."
-        );
+        alert("Could not create the report.");
 
     });
 
@@ -154,12 +156,10 @@ function createReport(latitude, longitude) {
 
 
 // ==============================
-// LOAD REPORTS FROM FLASK
+// LOAD REPORTS
 // ==============================
 
 function loadReports() {
-
-    // Remove old markers
 
     reportMarkers.forEach(function(marker) {
 
@@ -169,8 +169,6 @@ function loadReports() {
 
     reportMarkers = [];
 
-
-    // Get reports
 
     fetch('/reports')
 
@@ -188,10 +186,7 @@ function loadReports() {
 
         .catch(error => {
 
-            console.error(
-                "Could not load reports:",
-                error
-            );
+            console.error("Could not load reports:", error);
 
         });
 
@@ -204,50 +199,39 @@ function loadReports() {
 
 function showReport(report) {
 
-    var flooded =
-        report.flooded_votes || 0;
+    var flooded = report.flooded_votes || 0;
 
-    var safe =
-        report.safe_votes || 0;
+    var safe = report.safe_votes || 0;
 
-    var total =
-        flooded + safe;
+    var total = flooded + safe;
 
     var status;
 
 
-    // Determine status
-
     if (total < 3) {
 
-        status =
-            "❓ Not enough votes yet";
+        status = "❓ Not enough votes yet";
 
     }
 
     else if (flooded > safe) {
 
-        status =
-            "⚠️ Community reports FLOODED";
+        status = "⚠️ Community reports FLOODED";
 
     }
 
     else if (safe > flooded) {
 
-        status =
-            "🟢 Community reports SAFE";
+        status = "🟢 Community reports SAFE";
 
     }
 
     else {
 
-        status =
-            "⚖️ Votes are equal";
+        status = "⚖️ Votes are equal";
 
     }
 
-
-    // Popup content
 
     var popup = `
         <div>
@@ -282,20 +266,13 @@ function showReport(report) {
     `;
 
 
-    // Create marker
-
     var marker = L.marker([
         report.latitude,
         report.longitude
     ]).addTo(map);
 
 
-    // Add popup
-
     marker.bindPopup(popup);
-
-
-    // Save marker
 
     reportMarkers.push(marker);
 
@@ -338,14 +315,9 @@ function vote(reportId, voteType) {
 
     .catch(error => {
 
-        console.error(
-            "Voting error:",
-            error
-        );
+        console.error("Voting error:", error);
 
-        alert(
-            "Could not submit your vote."
-        );
+        alert("Could not submit your vote.");
 
     });
 
