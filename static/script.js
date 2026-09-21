@@ -240,3 +240,13 @@ map.on("click", function() {
 
     });
 }
+
+
+
+var header = document.getElementById("header");
+
+map.on("click", function() {
+
+    header.classList.toggle("hidden");
+
+});
