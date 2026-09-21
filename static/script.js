@@ -231,22 +231,32 @@ function vote(reportId, voteType) {
         
 var header = document.getElementById("header");
 
-map.on("click", function() {
+map.on('click', function(event) {
 
-   header.classList.add("hidden");
-   map.classList.add("fullscreen");
+    var header = document.getElementById("header");
+
+    header.classList.add("hidden");
+    map.classList.add("fullscreen");
+
+    var latitude = event.latlng.lat;
+    var longitude = event.latlng.lng;
+
+    // your popup code continues here...
 });
-        loadReports();
-
-    });
-}
 
 
 
 var header = document.getElementById("header");
 
-map.on("click", function() {
+map.on('click', function(event) {
+
+    var header = document.getElementById("header");
 
     header.classList.add("hidden");
     map.classList.add("fullscreen");
+
+    var latitude = event.latlng.lat;
+    var longitude = event.latlng.lng;
+
+    // your popup code continues here...
 });
