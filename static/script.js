@@ -233,8 +233,8 @@ var header = document.getElementById("header");
 
 map.on("click", function() {
 
-    header.classList.toggle("hidden");
-
+   header.classList.add("hidden");
+   map.classList.add("fullscreen");
 });
         loadReports();
 
@@ -247,6 +247,6 @@ var header = document.getElementById("header");
 
 map.on("click", function() {
 
-    header.classList.toggle("hidden");
-
+    header.classList.add("hidden");
+    map.classList.add("fullscreen");
 });
