@@ -2,30 +2,39 @@ from flask import Flask, render_template, request, jsonify
 import os
 import psycopg2
 from psycopg2.extras import RealDictCursor
+
 app = Flask(__name__)
 
 
 def get_db():
-    connection = sqlite3.connect("flood_alert.db")
-    connection.row_factory = sqlite3.Row
-    return connection
+
+    database_url = os.environ.get("DATABASE_URL")
+
+    if not database_url:
+        raise Exception("DATABASE_URL is not set")
+
+    return psycopg2.connect(
+        database_url,
+        cursor_factory=RealDictCursor
+    )
 
 
 def init_db():
 
     connection = get_db()
+    cursor = connection.cursor()
 
-    connection.execute("""
+    cursor.execute("""
         CREATE TABLE IF NOT EXISTS reports (
-            id INTEGER PRIMARY KEY AUTOINCREMENT,
-            latitude REAL NOT NULL,
-            longitude REAL NOT NULL
+            id SERIAL PRIMARY KEY,
+            latitude DOUBLE PRECISION NOT NULL,
+            longitude DOUBLE PRECISION NOT NULL
         )
     """)
 
-    connection.execute("""
+    cursor.execute("""
         CREATE TABLE IF NOT EXISTS votes (
-            id INTEGER PRIMARY KEY AUTOINCREMENT,
+            id SERIAL PRIMARY KEY,
             report_id INTEGER NOT NULL,
             voter_id TEXT NOT NULL,
             vote TEXT NOT NULL,
@@ -34,11 +43,14 @@ def init_db():
     """)
 
     connection.commit()
+
+    cursor.close()
     connection.close()
 
 
 @app.route("/")
 def home():
+
     return render_template("index.html")
 
 
@@ -46,18 +58,29 @@ def home():
 def get_reports():
 
     connection = get_db()
+    cursor = connection.cursor()
 
-    reports = connection.execute("""
+    cursor.execute("""
         SELECT
             reports.id,
             reports.latitude,
             reports.longitude,
 
-            SUM(CASE WHEN votes.vote = 'flooded'
-                THEN 1 ELSE 0 END) AS flooded_votes,
+            SUM(
+                CASE
+                    WHEN votes.vote = 'flooded'
+                    THEN 1
+                    ELSE 0
+                END
+            ) AS flooded_votes,
 
-            SUM(CASE WHEN votes.vote = 'safe'
-                THEN 1 ELSE 0 END) AS safe_votes
+            SUM(
+                CASE
+                    WHEN votes.vote = 'safe'
+                    THEN 1
+                    ELSE 0
+                END
+            ) AS safe_votes
 
         FROM reports
 
@@ -65,11 +88,14 @@ def get_reports():
         ON reports.id = votes.report_id
 
         GROUP BY reports.id
-    """).fetchall()
+    """)
 
+    reports = cursor.fetchall()
+
+    cursor.close()
     connection.close()
 
-    return jsonify([dict(report) for report in reports])
+    return jsonify(reports)
 
 
 @app.route("/reports", methods=["POST"])
@@ -81,15 +107,19 @@ def create_report():
     longitude = data["longitude"]
 
     connection = get_db()
+    cursor = connection.cursor()
 
-    cursor = connection.execute("""
+    cursor.execute("""
         INSERT INTO reports (latitude, longitude)
-        VALUES (?, ?)
+        VALUES (%s, %s)
+        RETURNING id
     """, (latitude, longitude))
 
-    report_id = cursor.lastrowid
+    report_id = cursor.fetchone()["id"]
 
     connection.commit()
+
+    cursor.close()
     connection.close()
 
     return jsonify({
@@ -106,35 +136,43 @@ def vote(report_id):
     new_vote = data["vote"]
 
     connection = get_db()
+    cursor = connection.cursor()
 
-    existing_vote = connection.execute("""
+    cursor.execute("""
         SELECT id
         FROM votes
-        WHERE report_id = ? AND voter_id = ?
-    """, (report_id, voter_id)).fetchone()
+        WHERE report_id = %s
+        AND voter_id = %s
+    """, (report_id, voter_id))
 
+    existing_vote = cursor.fetchone()
 
     if existing_vote:
 
-        connection.execute("""
+        cursor.execute("""
             UPDATE votes
-            SET vote = ?
-            WHERE id = ?
+            SET vote = %s
+            WHERE id = %s
         """, (new_vote, existing_vote["id"]))
 
         message = "Your vote has been changed!"
 
     else:
 
-        connection.execute("""
-            INSERT INTO votes (report_id, voter_id, vote)
-            VALUES (?, ?, ?)
+        cursor.execute("""
+            INSERT INTO votes (
+                report_id,
+                voter_id,
+                vote
+            )
+            VALUES (%s, %s, %s)
         """, (report_id, voter_id, new_vote))
 
         message = "Your vote has been recorded!"
 
-
     connection.commit()
+
+    cursor.close()
     connection.close()
 
     return jsonify({
@@ -142,7 +180,7 @@ def vote(report_id):
     })
 
 
-# Create the database tables when running on Render
+# Create database tables when DATABASE_URL exists
 if os.environ.get("DATABASE_URL"):
     init_db()
 
