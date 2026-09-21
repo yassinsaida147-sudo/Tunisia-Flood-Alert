@@ -1,24 +1,38 @@
-// Create the map
+// ==============================
+// CREATE THE MAP
+// ==============================
+
 var map = L.map('map').setView([36.8065, 10.1815], 7);
 
 
-// Add OpenStreetMap
+// ==============================
+// OPENSTREETMAP
+// ==============================
+
 L.tileLayer('https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png', {
     attribution: '&copy; OpenStreetMap contributors'
 }).addTo(map);
 
 
-// This will keep track of our markers
+// ==============================
+// MARKERS
+// ==============================
+
 var reportMarkers = [];
 
 
-// Create an ID for this browser/device
+// ==============================
+// CREATE VOTER ID
+// ==============================
+
 function getVoterId() {
 
     var voterId = localStorage.getItem("voter_id");
 
     if (!voterId) {
+
         voterId = crypto.randomUUID();
+
         localStorage.setItem("voter_id", voterId);
     }
 
@@ -29,16 +43,31 @@ function getVoterId() {
 var voterId = getVoterId();
 
 
-// Load reports when the website opens
+// ==============================
+// LOAD REPORTS
+// ==============================
+
 loadReports();
 
 
-// When the user clicks the map
+// ==============================
+// WHEN USER CLICKS THE MAP
+// ==============================
+
 map.on('click', function(event) {
 
+    // Hide the header
+    var header = document.getElementById("header");
+
+    header.classList.add("hidden");
+
+
+    // Get coordinates
     var latitude = event.latlng.lat;
     var longitude = event.latlng.lng;
 
+
+    // Report popup
     var reportForm = `
         <div>
 
@@ -53,14 +82,20 @@ map.on('click', function(event) {
         </div>
     `;
 
+
+    // Open popup
     L.popup()
         .setLatLng(event.latlng)
         .setContent(reportForm)
         .openOn(map);
+
 });
 
 
-// Create a report
+// ==============================
+// CREATE REPORT
+// ==============================
+
 function createReport(latitude, longitude) {
 
     fetch('/reports', {
@@ -77,7 +112,20 @@ function createReport(latitude, longitude) {
         })
 
     })
-    .then(response => response.json())
+
+    .then(response => {
+
+        if (!response.ok) {
+
+            throw new Error(
+                "Server error: " + response.status
+            );
+
+        }
+
+        return response.json();
+
+    })
 
     .then(data => {
 
@@ -87,20 +135,42 @@ function createReport(latitude, longitude) {
 
         loadReports();
 
+    })
+
+    .catch(error => {
+
+        console.error(
+            "Create report error:",
+            error
+        );
+
+        alert(
+            "Could not create the report."
+        );
+
     });
+
 }
 
 
-// Load reports from Flask
+// ==============================
+// LOAD REPORTS FROM FLASK
+// ==============================
+
 function loadReports() {
 
     // Remove old markers
+
     reportMarkers.forEach(function(marker) {
+
         map.removeLayer(marker);
+
     });
 
     reportMarkers = [];
 
+
+    // Get reports
 
     fetch('/reports')
 
@@ -109,48 +179,75 @@ function loadReports() {
         .then(reports => {
 
             reports.forEach(function(report) {
+
                 showReport(report);
+
             });
 
+        })
+
+        .catch(error => {
+
+            console.error(
+                "Could not load reports:",
+                error
+            );
+
         });
+
 }
 
 
-// Display a report
+// ==============================
+// SHOW REPORT
+// ==============================
+
 function showReport(report) {
 
-    var flooded = report.flooded_votes || 0;
-    var safe = report.safe_votes || 0;
+    var flooded =
+        report.flooded_votes || 0;
 
-    var total = flooded + safe;
+    var safe =
+        report.safe_votes || 0;
+
+    var total =
+        flooded + safe;
 
     var status;
 
 
+    // Determine status
+
     if (total < 3) {
 
-        status = "❓ Not enough votes yet";
+        status =
+            "❓ Not enough votes yet";
 
     }
 
     else if (flooded > safe) {
 
-        status = "⚠️ Community reports FLOODED";
+        status =
+            "⚠️ Community reports FLOODED";
 
     }
 
     else if (safe > flooded) {
 
-        status = "🟢 Community reports SAFE";
+        status =
+            "🟢 Community reports SAFE";
 
     }
 
     else {
 
-        status = "⚖️ Votes are equal";
+        status =
+            "⚖️ Votes are equal";
 
     }
 
+
+    // Popup content
 
     var popup = `
         <div>
@@ -185,20 +282,30 @@ function showReport(report) {
     `;
 
 
+    // Create marker
+
     var marker = L.marker([
         report.latitude,
         report.longitude
     ]).addTo(map);
 
 
+    // Add popup
+
     marker.bindPopup(popup);
 
 
+    // Save marker
+
     reportMarkers.push(marker);
+
 }
 
 
-// Vote or change vote
+// ==============================
+// VOTE
+// ==============================
+
 function vote(reportId, voteType) {
 
     fetch(`/reports/${reportId}/vote`, {
@@ -225,28 +332,21 @@ function vote(reportId, voteType) {
 
         alert(data.message);
 
-
-
-
-        
-var header = document.getElementById("header");
-
-map.on("click", function() {
-
-    header.classList.toggle("hidden");
-
-});
         loadReports();
 
+    })
+
+    .catch(error => {
+
+        console.error(
+            "Voting error:",
+            error
+        );
+
+        alert(
+            "Could not submit your vote."
+        );
+
     });
+
 }
-
-
-
-var header = document.getElementById("header");
-
-map.on("click", function() {
-
-    header.classList.toggle("hidden");
-
-});
