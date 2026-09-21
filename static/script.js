@@ -38,15 +38,6 @@ map.on('click', function(event) {
 
     
 
-    var header = document.getElementById("header");
-
-    header.classList.add("hidden");
-
-    var latitude = event.latlng.lat;
-
-
-    
-
     var latitude = event.latlng.lat;
     var longitude = event.latlng.lng;
 
