@@ -293,10 +293,42 @@ function showReport(report) {
     `;
 
 
-    var marker = L.marker([
+   // ==============================
+// CHOOSE MARKER COLOR
+// ==============================
+
+var markerColor = "gray";
+
+if (total >= 3) {
+
+    if (flooded > safe) {
+
+        markerColor = "red";
+
+    }
+
+    else if (safe > flooded) {
+
+        markerColor = "green";
+
+    }
+
+}
+
+
+// ==============================
+// CREATE MARKER
+// ==============================
+
+var marker = L.marker(
+    [
         report.latitude,
         report.longitude
-    ]).addTo(map);
+    ],
+    {
+        icon: createMarkerIcon(markerColor)
+    }
+).addTo(map);
 
 
     marker.bindPopup(popup);
