@@ -10,12 +10,67 @@ var map = L.map('map').setView([36.8065, 10.1815], 7);
 // ==============================
 
 L.tileLayer('https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png', {
+
     attribution: '&copy; OpenStreetMap contributors'
+
 }).addTo(map);
 
 
 // ==============================
-// MARKERS
+// USER LOCATION
+// ==============================
+
+var userLocationMarker = null;
+
+
+if (navigator.geolocation) {
+
+    navigator.geolocation.getCurrentPosition(
+
+        function(position) {
+
+            var latitude = position.coords.latitude;
+            var longitude = position.coords.longitude;
+
+
+            // Move map to user's location
+
+            map.setView(
+                [latitude, longitude],
+                15
+            );
+
+
+            // Create user location marker
+
+            userLocationMarker = L.marker([
+                latitude,
+                longitude
+            ]).addTo(map);
+
+
+            userLocationMarker
+                .bindPopup("📍 You are here")
+                .openPopup();
+
+        },
+
+        function(error) {
+
+            console.log(
+                "Could not get your location:",
+                error.message
+            );
+
+        }
+
+    );
+
+}
+
+
+// ==============================
+// REPORT MARKERS
 // ==============================
 
 var reportMarkers = [];
@@ -29,15 +84,22 @@ function getVoterId() {
 
     var voterId = localStorage.getItem("voter_id");
 
+
     if (!voterId) {
 
         voterId = crypto.randomUUID();
 
-        localStorage.setItem("voter_id", voterId);
+        localStorage.setItem(
+            "voter_id",
+            voterId
+        );
+
     }
+
 
     return voterId;
 }
+
 
 var voterId = getVoterId();
 
@@ -56,18 +118,21 @@ loadReports();
 map.on('click', function(event) {
 
     // Hide header
+
     var header = document.getElementById("header");
 
     header.classList.add("hidden");
 
 
     // Make map fullscreen
+
     var mapElement = document.getElementById("map");
 
     mapElement.classList.add("fullscreen");
 
 
     // Update Leaflet map size
+
     setTimeout(function() {
 
         map.invalidateSize();
@@ -75,13 +140,17 @@ map.on('click', function(event) {
     }, 400);
 
 
-    // Get clicked coordinates
+    // Get coordinates
+
     var latitude = event.latlng.lat;
+
     var longitude = event.latlng.lng;
 
 
     // Create report popup
+
     var reportForm = `
+
         <div style="text-align: center;">
 
             <b>🚨 Report this location</b>
@@ -95,13 +164,18 @@ map.on('click', function(event) {
             </button>
 
         </div>
+
     `;
 
 
     // Open popup
+
     L.popup()
+
         .setLatLng(event.latlng)
+
         .setContent(reportForm)
+
         .openOn(map);
 
 });
@@ -118,12 +192,15 @@ function createReport(latitude, longitude) {
         method: 'POST',
 
         headers: {
+
             'Content-Type': 'application/json'
+
         },
 
         body: JSON.stringify({
 
             latitude: latitude,
+
             longitude: longitude
 
         })
@@ -140,42 +217,63 @@ function createReport(latitude, longitude) {
 
         }
 
+
         return response.json();
 
     })
 
     .then(data => {
 
-        // Close the "Create Report" popup
+        // Close create-report popup
+
         map.closePopup();
 
 
-        // Load the reports again
+        // Reload reports
+
         loadReports();
 
 
-        // Wait for the new marker to be created
+        // Wait for marker to appear
+
         setTimeout(function() {
 
+
             // Find the marker we just created
-            var newMarker = reportMarkers.find(function(marker) {
 
-                var position = marker.getLatLng();
+            var newMarker = reportMarkers.find(
+                function(marker) {
 
-                return (
-                    Math.abs(position.lat - latitude) < 0.000001 &&
-                    Math.abs(position.lng - longitude) < 0.000001
-                );
-
-            });
+                    var position =
+                        marker.getLatLng();
 
 
-            // Automatically open the voting popup
+                    return (
+
+                        Math.abs(
+                            position.lat - latitude
+                        ) < 0.000001
+
+                        &&
+
+                        Math.abs(
+                            position.lng - longitude
+                        ) < 0.000001
+
+                    );
+
+                }
+            );
+
+
+            // Automatically open voting popup
+
             if (newMarker) {
 
                 newMarker.openPopup();
 
             }
+
 
         }, 300);
 
@@ -187,6 +285,7 @@ function createReport(latitude, longitude) {
             "Create report error:",
             error
         );
+
 
         alert(
             "Could not create the report."
@@ -203,17 +302,21 @@ function createReport(latitude, longitude) {
 
 function loadReports() {
 
+
     // Remove old markers
+
     reportMarkers.forEach(function(marker) {
 
         map.removeLayer(marker);
 
     });
 
+
     reportMarkers = [];
 
 
     // Get reports from server
+
     fetch('/reports')
 
         .then(response => {
@@ -225,6 +328,7 @@ function loadReports() {
                 );
 
             }
+
 
             return response.json();
 
@@ -262,18 +366,31 @@ function createMarkerIcon(color) {
 
         className: "",
 
+
         html: `
+
             <div style="
+
                 background-color: ${color};
+
                 width: 25px;
+
                 height: 25px;
+
                 border-radius: 50%;
+
                 border: 3px solid white;
-                box-shadow: 0 0 5px rgba(0,0,0,0.5);
+
+                box-shadow:
+                    0 0 5px rgba(0,0,0,0.5);
+
             "></div>
+
         `,
 
+
         iconSize: [31, 31],
+
 
         iconAnchor: [15, 15]
 
@@ -288,11 +405,18 @@ function createMarkerIcon(color) {
 
 function showReport(report) {
 
-    var flooded = Number(report.flooded_votes) || 0;
 
-    var safe = Number(report.safe_votes) || 0;
+    var flooded =
+        Number(report.flooded_votes) || 0;
 
-    var total = flooded + safe;
+
+    var safe =
+        Number(report.safe_votes) || 0;
+
+
+    var total =
+        flooded + safe;
+
 
     var status;
 
@@ -301,27 +425,31 @@ function showReport(report) {
     // DETERMINE STATUS
     // ==============================
 
-    if (total < 3) {
+    if (total === 0) {
 
-        status = "❓ Not enough votes yet";
+        status =
+            "❓ No votes yet";
 
     }
 
     else if (flooded > safe) {
 
-        status = "⚠️ Community reports FLOODED";
+        status =
+            "⚠️ Community reports FLOODED";
 
     }
 
     else if (safe > flooded) {
 
-        status = "🟢 Community reports SAFE";
+        status =
+            "🟢 Community reports SAFE";
 
     }
 
     else {
 
-        status = "⚖️ Votes are equal";
+        status =
+            "⚖️ Votes are equal";
 
     }
 
@@ -332,19 +460,16 @@ function showReport(report) {
 
     var markerColor = "gray";
 
-    if (total >= 3) {
 
-        if (flooded > safe) {
+    if (flooded > safe) {
 
-            markerColor = "red";
+        markerColor = "red";
 
-        }
+    }
 
-        else if (safe > flooded) {
+    else if (safe > flooded) {
 
-            markerColor = "green";
-
-        }
+        markerColor = "green";
 
     }
 
@@ -354,61 +479,115 @@ function showReport(report) {
     // ==============================
 
     var popup = `
-        <div style="text-align: center; min-width: 200px;">
+
+        <div style="
+            text-align: center;
+            min-width: 200px;
+        ">
+
 
             <b>${status}</b>
 
+
             <br><br>
 
-            🔴 Flooded: ${flooded}
+
+            🔴 Flooded:
+            ${flooded}
+
 
             <br>
 
-            🟢 Safe: ${safe}
+
+            🟢 Safe:
+            ${safe}
+
 
             <br>
 
-            👥 Total votes: ${total}
+
+            👥 Total votes:
+            ${total}
+
 
             <hr>
 
-            <b>What do you see here?</b>
+
+            <b>
+                What do you see here?
+            </b>
+
 
             <br><br>
 
+
             <button
-                onclick="vote(${report.id}, 'flooded')"
+
+                onclick="
+                    vote(${report.id}, 'flooded')
+                "
+
                 style="
+
                     background-color: red;
+
                     color: white;
+
                     width: 100%;
+
                     padding: 12px;
+
                     border: none;
+
                     border-radius: 8px;
+
                     cursor: pointer;
+
                 "
+
             >
+
                 🔴 I see flooding
+
             </button>
+
 
             <br><br>
 
+
             <button
-                onclick="vote(${report.id}, 'safe')"
-                style="
-                    background-color: green;
-                    color: white;
-                    width: 100%;
-                    padding: 12px;
-                    border: none;
-                    border-radius: 8px;
-                    cursor: pointer;
+
+                onclick="
+                    vote(${report.id}, 'safe')
                 "
+
+                style="
+
+                    background-color: green;
+
+                    color: white;
+
+                    width: 100%;
+
+                    padding: 12px;
+
+                    border: none;
+
+                    border-radius: 8px;
+
+                    cursor: pointer;
+
+                "
+
             >
+
                 🟢 I see it is safe
+
             </button>
+
 
         </div>
+
     `;
 
 
@@ -419,19 +598,25 @@ function showReport(report) {
     var marker = L.marker(
 
         [
+
             report.latitude,
+
             report.longitude
+
         ],
 
         {
-            icon: createMarkerIcon(markerColor)
+
+            icon:
+                createMarkerIcon(markerColor)
+
         }
 
     ).addTo(map);
 
 
     // ==============================
-    // CONNECT POPUP TO MARKER
+    // CONNECT POPUP
     // ==============================
 
     marker.bindPopup(popup);
@@ -452,23 +637,33 @@ function showReport(report) {
 
 function vote(reportId, voteType) {
 
-    fetch(`/reports/${reportId}/vote`, {
 
-        method: 'POST',
+    fetch(
+        `/reports/${reportId}/vote`,
+        {
 
-        headers: {
-            'Content-Type': 'application/json'
-        },
+            method: 'POST',
 
-        body: JSON.stringify({
 
-            voter_id: voterId,
+            headers: {
 
-            vote: voteType
+                'Content-Type':
+                    'application/json'
 
-        })
+            },
 
-    })
+
+            body: JSON.stringify({
+
+                voter_id: voterId,
+
+                vote: voteType
+
+            })
+
+        }
+
+    )
 
     .then(response => {
 
@@ -480,30 +675,42 @@ function vote(reportId, voteType) {
 
         }
 
+
         return response.json();
 
     })
 
+
     .then(data => {
 
-        // Show server message
+
+        // Show message
+
         alert(data.message);
 
 
         // Reload reports
-        // This updates the marker color
-        // and vote counts
+
+        // This updates:
+
+        // 🔴 red marker
+        // 🟢 green marker
+        // ⚪ gray marker
+        // vote counts
 
         loadReports();
 
     })
 
+
     .catch(error => {
+
 
         console.error(
             "Voting error:",
             error
         );
+
 
         alert(
             "Could not submit your vote."
