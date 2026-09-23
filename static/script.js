@@ -61,15 +61,17 @@ map.on('click', function(event) {
     header.classList.add("hidden");
 
 
-    // Make map full screen
+    // Make map fullscreen
     var mapElement = document.getElementById("map");
 
     mapElement.classList.add("fullscreen");
 
 
-    // Tell Leaflet the map size changed
+    // Tell Leaflet that the map size changed
     setTimeout(function() {
+
         map.invalidateSize();
+
     }, 400);
 
 
@@ -118,8 +120,10 @@ function createReport(latitude, longitude) {
         },
 
         body: JSON.stringify({
+
             latitude: latitude,
             longitude: longitude
+
         })
 
     })
@@ -127,7 +131,11 @@ function createReport(latitude, longitude) {
     .then(response => {
 
         if (!response.ok) {
-            throw new Error("Server error: " + response.status);
+
+            throw new Error(
+                "Server error: " + response.status
+            );
+
         }
 
         return response.json();
@@ -146,9 +154,14 @@ function createReport(latitude, longitude) {
 
     .catch(error => {
 
-        console.error("Create report error:", error);
+        console.error(
+            "Create report error:",
+            error
+        );
 
-        alert("Could not create the report.");
+        alert(
+            "Could not create the report."
+        );
 
     });
 
@@ -161,6 +174,8 @@ function createReport(latitude, longitude) {
 
 function loadReports() {
 
+    // Remove old markers
+
     reportMarkers.forEach(function(marker) {
 
         map.removeLayer(marker);
@@ -170,9 +185,23 @@ function loadReports() {
     reportMarkers = [];
 
 
+    // Get reports from Flask
+
     fetch('/reports')
 
-        .then(response => response.json())
+        .then(response => {
+
+            if (!response.ok) {
+
+                throw new Error(
+                    "Server error: " + response.status
+                );
+
+            }
+
+            return response.json();
+
+        })
 
         .then(reports => {
 
@@ -186,11 +215,15 @@ function loadReports() {
 
         .catch(error => {
 
-            console.error("Could not load reports:", error);
+            console.error(
+                "Could not load reports:",
+                error
+            );
 
         });
 
 }
+
 
 // ==============================
 // CREATE COLORED MARKER
@@ -220,11 +253,15 @@ function createMarkerIcon(color) {
     });
 
 }
+
+
 // ==============================
 // SHOW REPORT
 // ==============================
 
 function showReport(report) {
+
+    // Get vote counts
 
     var flooded = report.flooded_votes || 0;
 
@@ -234,6 +271,10 @@ function showReport(report) {
 
     var status;
 
+
+    // ==============================
+    // DETERMINE STATUS
+    // ==============================
 
     if (total < 3) {
 
@@ -259,6 +300,10 @@ function showReport(report) {
 
     }
 
+
+    // ==============================
+    // POPUP
+    // ==============================
 
     var popup = `
         <div>
@@ -293,91 +338,5 @@ function showReport(report) {
     `;
 
 
-   // ==============================
-// CHOOSE MARKER COLOR
-// ==============================
-
-var markerColor = "gray";
-
-if (total >= 3) {
-
-    if (flooded > safe) {
-
-        markerColor = "red";
-
-    }
-
-    else if (safe > flooded) {
-
-        markerColor = "green";
-
-    }
-
-}
-
-
-// ==============================
-// CREATE MARKER
-// ==============================
-
-var marker = L.marker(
-    [
-        report.latitude,
-        report.longitude
-    ],
-    {
-        icon: createMarkerIcon(markerColor)
-    }
-).addTo(map);
-
-
-    marker.bindPopup(popup);
-
-    reportMarkers.push(marker);
-
-}
-
-
-// ==============================
-// VOTE
-// ==============================
-
-function vote(reportId, voteType) {
-
-    fetch(`/reports/${reportId}/vote`, {
-
-        method: 'POST',
-
-        headers: {
-            'Content-Type': 'application/json'
-        },
-
-        body: JSON.stringify({
-
-            voter_id: voterId,
-
-            vote: voteType
-
-        })
-
-    })
-
-    .then(response => response.json())
-
-    .then(data => {
-
-        alert(data.message);
-
-        loadReports();
-
-    })
-
-    .catch(error => {
-
-        console.error("Voting error:", error);
-
-        alert("Could not submit your vote.");
-
-    });
-
+    // =================
 }
