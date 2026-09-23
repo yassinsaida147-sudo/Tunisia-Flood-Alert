@@ -6,10 +6,6 @@ from psycopg2.extras import RealDictCursor
 app = Flask(__name__)
 
 
-# ==============================
-# DATABASE CONNECTION
-# ==============================
-
 def get_db():
 
     database_url = os.environ.get("DATABASE_URL")
@@ -23,33 +19,19 @@ def get_db():
     )
 
 
-# ==============================
-# INITIALIZE DATABASE
-# ==============================
-
 def init_db():
 
     connection = get_db()
     cursor = connection.cursor()
 
-    # Reports table
     cursor.execute("""
         CREATE TABLE IF NOT EXISTS reports (
             id SERIAL PRIMARY KEY,
             latitude DOUBLE PRECISION NOT NULL,
-            longitude DOUBLE PRECISION NOT NULL,
-            created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
+            longitude DOUBLE PRECISION NOT NULL
         )
     """)
 
-    # Add created_at if the table already existed
-    cursor.execute("""
-        ALTER TABLE reports
-        ADD COLUMN IF NOT EXISTS created_at
-        TIMESTAMP DEFAULT CURRENT_TIMESTAMP
-    """)
-
-    # Votes table
     cursor.execute("""
         CREATE TABLE IF NOT EXISTS votes (
             id SERIAL PRIMARY KEY,
@@ -60,68 +42,151 @@ def init_db():
         )
     """)
 
-    # Delete votes belonging to reports older than 24 hours
-    cursor.execute("""
-        DELETE FROM votes
-        WHERE report_id IN (
-            SELECT id
-            FROM reports
-            WHERE created_at < CURRENT_TIMESTAMP - INTERVAL '24 hours'
-        )
-    """)
-
-    # Delete reports older than 24 hours
-    cursor.execute("""
-        DELETE FROM reports
-        WHERE created_at < CURRENT_TIMESTAMP - INTERVAL '24 hours'
-    """)
-
     connection.commit()
 
     cursor.close()
     connection.close()
 
 
-# ==============================
-# YOUR ROUTES
-# ==============================
-
 @app.route("/")
 def home():
+
     return render_template("index.html")
 
 
 @app.route("/reports")
 def get_reports():
-    # your existing code
-    pass
+
+    connection = get_db()
+    cursor = connection.cursor()
+
+    cursor.execute("""
+        SELECT
+            reports.id,
+            reports.latitude,
+            reports.longitude,
+
+            SUM(
+                CASE
+                    WHEN votes.vote = 'flooded'
+                    THEN 1
+                    ELSE 0
+                END
+            ) AS flooded_votes,
+
+            SUM(
+                CASE
+                    WHEN votes.vote = 'safe'
+                    THEN 1
+                    ELSE 0
+                END
+            ) AS safe_votes
+
+        FROM reports
+
+        LEFT JOIN votes
+        ON reports.id = votes.report_id
+
+        GROUP BY reports.id
+    """)
+
+    reports = cursor.fetchall()
+
+    cursor.close()
+    connection.close()
+
+    return jsonify(reports)
 
 
 @app.route("/reports", methods=["POST"])
 def create_report():
-    # your existing code
-    pass
+
+    data = request.json
+
+    latitude = data["latitude"]
+    longitude = data["longitude"]
+
+    connection = get_db()
+    cursor = connection.cursor()
+
+    cursor.execute("""
+        INSERT INTO reports (latitude, longitude)
+        VALUES (%s, %s)
+        RETURNING id
+    """, (latitude, longitude))
+
+    report_id = cursor.fetchone()["id"]
+
+    connection.commit()
+
+    cursor.close()
+    connection.close()
+
+    return jsonify({
+        "id": report_id
+    })
 
 
 @app.route("/reports/<int:report_id>/vote", methods=["POST"])
 def vote(report_id):
-    # your existing code
-    pass
+
+    data = request.json
+
+    voter_id = data["voter_id"]
+    new_vote = data["vote"]
+
+    connection = get_db()
+    cursor = connection.cursor()
+
+    cursor.execute("""
+        SELECT id
+        FROM votes
+        WHERE report_id = %s
+        AND voter_id = %s
+    """, (report_id, voter_id))
+
+    existing_vote = cursor.fetchone()
+
+    if existing_vote:
+
+        cursor.execute("""
+            UPDATE votes
+            SET vote = %s
+            WHERE id = %s
+        """, (new_vote, existing_vote["id"]))
+
+        message = "Your vote has been changed!"
+
+    else:
+
+        cursor.execute("""
+            INSERT INTO votes (
+                report_id,
+                voter_id,
+                vote
+            )
+            VALUES (%s, %s, %s)
+        """, (report_id, voter_id, new_vote))
+
+        message = "Your vote has been recorded!"
+
+    connection.commit()
+
+    cursor.close()
+    connection.close()
+
+    return jsonify({
+        "message": message
+    })
 
 
-# ==============================
-# RUN DATABASE INITIALIZATION
-# ==============================
-
+# Create database tables when DATABASE_URL exists
 if os.environ.get("DATABASE_URL"):
     init_db()
 
 
-# ==============================
-# START FLASK
-# ==============================
-
 if __name__ == "__main__":
+
     app.run(
         host="0.0.0.0",
         port=5000,
