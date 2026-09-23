@@ -50,7 +50,7 @@ loadReports();
 
 
 // ==============================
-// WHEN USER CLICKS THE MAP
+// CLICK MAP
 // ==============================
 
 map.on('click', function(event) {
@@ -67,7 +67,7 @@ map.on('click', function(event) {
     mapElement.classList.add("fullscreen");
 
 
-    // Tell Leaflet that the map size changed
+    // Update Leaflet size
     setTimeout(function() {
 
         map.invalidateSize();
@@ -82,7 +82,7 @@ map.on('click', function(event) {
 
     // Report popup
     var reportForm = `
-        <div>
+        <div style="text-align: center;">
 
             <b>🚨 Report this location</b>
 
@@ -185,7 +185,7 @@ function loadReports() {
     reportMarkers = [];
 
 
-    // Get reports from Flask
+    // Get reports
 
     fetch('/reports')
 
@@ -261,11 +261,9 @@ function createMarkerIcon(color) {
 
 function showReport(report) {
 
-    // Get vote counts
+    var flooded = Number(report.flooded_votes) || 0;
 
-    var flooded = report.flooded_votes || 0;
-
-    var safe = report.safe_votes || 0;
+    var safe = Number(report.safe_votes) || 0;
 
     var total = flooded + safe;
 
@@ -302,11 +300,34 @@ function showReport(report) {
 
 
     // ==============================
+    // CHOOSE MARKER COLOR
+    // ==============================
+
+    var markerColor = "gray";
+
+    if (total >= 3) {
+
+        if (flooded > safe) {
+
+            markerColor = "red";
+
+        }
+
+        else if (safe > flooded) {
+
+            markerColor = "green";
+
+        }
+
+    }
+
+
+    // ==============================
     // POPUP
     // ==============================
 
     var popup = `
-        <div>
+        <div style="text-align: center;">
 
             <b>${status}</b>
 
@@ -322,15 +343,33 @@ function showReport(report) {
 
             👥 Total votes: ${total}
 
+            <hr>
+
+            <b>What do you see here?</b>
+
             <br><br>
 
-            <button onclick="vote(${report.id}, 'flooded')">
+            <button
+                onclick="vote(${report.id}, 'flooded')"
+                style="
+                    background-color: red;
+                    color: white;
+                    width: 100%;
+                "
+            >
                 🔴 I see flooding
             </button>
 
             <br><br>
 
-            <button onclick="vote(${report.id}, 'safe')">
+            <button
+                onclick="vote(${report.id}, 'safe')"
+                style="
+                    background-color: green;
+                    color: white;
+                    width: 100%;
+                "
+            >
                 🟢 I see it is safe
             </button>
 
@@ -338,5 +377,94 @@ function showReport(report) {
     `;
 
 
-    // =================
+    // ==============================
+    // CREATE MARKER
+    // ==============================
+
+    var marker = L.marker(
+        [
+            report.latitude,
+            report.longitude
+        ],
+        {
+            icon: createMarkerIcon(markerColor)
+        }
+    ).addTo(map);
+
+
+    // ==============================
+    // OPEN POPUP WHEN MARKER IS CLICKED
+    // ==============================
+
+    marker.bindPopup(popup);
+
+
+    // Save marker
+    reportMarkers.push(marker);
+
+}
+
+
+// ==============================
+// VOTE
+// ==============================
+
+function vote(reportId, voteType) {
+
+    fetch(`/reports/${reportId}/vote`, {
+
+        method: 'POST',
+
+        headers: {
+            'Content-Type': 'application/json'
+        },
+
+        body: JSON.stringify({
+
+            voter_id: voterId,
+
+            vote: voteType
+
+        })
+
+    })
+
+    .then(response => {
+
+        if (!response.ok) {
+
+            throw new Error(
+                "Server error: " + response.status
+            );
+
+        }
+
+        return response.json();
+
+    })
+
+    .then(data => {
+
+        alert(data.message);
+
+        // Reload reports.
+        // This also updates marker colors.
+
+        loadReports();
+
+    })
+
+    .catch(error => {
+
+        console.error(
+            "Voting error:",
+            error
+        );
+
+        alert(
+            "Could not submit your vote."
+        );
+
+    });
+
 }
