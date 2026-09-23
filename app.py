@@ -32,7 +32,11 @@ def init_db():
     connection = get_db()
     cursor = connection.cursor()
 
-    # Reports table
+
+    # ==============================
+    # REPORTS TABLE
+    # ==============================
+
     cursor.execute("""
         CREATE TABLE IF NOT EXISTS reports (
             id SERIAL PRIMARY KEY,
@@ -42,14 +46,20 @@ def init_db():
         )
     """)
 
-    # Add created_at to an existing reports table
+
+    # Make sure old database also has created_at
+
     cursor.execute("""
         ALTER TABLE reports
         ADD COLUMN IF NOT EXISTS created_at
         TIMESTAMP DEFAULT CURRENT_TIMESTAMP
     """)
 
-    # Votes table
+
+    # ==============================
+    # VOTES TABLE
+    # ==============================
+
     cursor.execute("""
         CREATE TABLE IF NOT EXISTS votes (
             id SERIAL PRIMARY KEY,
@@ -59,6 +69,7 @@ def init_db():
             UNIQUE(report_id, voter_id)
         )
     """)
+
 
     connection.commit()
 
@@ -85,6 +96,38 @@ def get_reports():
 
     connection = get_db()
     cursor = connection.cursor()
+
+
+    # ==============================
+    # DELETE REPORTS OLDER THAN 24 HOURS
+    # ==============================
+
+    # Delete votes belonging to expired reports first
+
+    cursor.execute("""
+        DELETE FROM votes
+        WHERE report_id IN (
+            SELECT id
+            FROM reports
+            WHERE created_at < CURRENT_TIMESTAMP - INTERVAL '24 hours'
+        )
+    """)
+
+
+    # Delete expired reports
+
+    cursor.execute("""
+        DELETE FROM reports
+        WHERE created_at < CURRENT_TIMESTAMP - INTERVAL '24 hours'
+    """)
+
+
+    connection.commit()
+
+
+    # ==============================
+    # GET CURRENT REPORTS
+    # ==============================
 
     cursor.execute("""
         SELECT
@@ -121,10 +164,13 @@ def get_reports():
         ORDER BY reports.created_at DESC
     """)
 
+
     reports = cursor.fetchall()
+
 
     cursor.close()
     connection.close()
+
 
     return jsonify(reports)
 
@@ -141,8 +187,10 @@ def create_report():
     latitude = data["latitude"]
     longitude = data["longitude"]
 
+
     connection = get_db()
     cursor = connection.cursor()
+
 
     cursor.execute("""
         INSERT INTO reports (
@@ -158,14 +206,20 @@ def create_report():
         )
 
         RETURNING id
-    """, (latitude, longitude))
+    """, (
+        latitude,
+        longitude
+    ))
+
 
     report_id = cursor.fetchone()["id"]
+
 
     connection.commit()
 
     cursor.close()
     connection.close()
+
 
     return jsonify({
         "id": report_id
@@ -184,30 +238,44 @@ def vote(report_id):
     voter_id = data["voter_id"]
     new_vote = data["vote"]
 
-    # Only allow these two vote types
+
+    # ==============================
+    # CHECK VOTE TYPE
+    # ==============================
+
     if new_vote not in ["flooded", "safe"]:
 
         return jsonify({
             "message": "Invalid vote."
         }), 400
 
+
     connection = get_db()
     cursor = connection.cursor()
 
-    # Check if this browser/device already voted
+
+    # ==============================
+    # CHECK EXISTING VOTE
+    # ==============================
+
     cursor.execute("""
         SELECT id
-
         FROM votes
-
         WHERE report_id = %s
         AND voter_id = %s
-    """, (report_id, voter_id))
+    """, (
+        report_id,
+        voter_id
+    ))
+
 
     existing_vote = cursor.fetchone()
 
 
-    # Change existing vote
+    # ==============================
+    # CHANGE EXISTING VOTE
+    # ==============================
+
     if existing_vote:
 
         cursor.execute("""
@@ -221,10 +289,14 @@ def vote(report_id):
             existing_vote["id"]
         ))
 
+
         message = "Your vote has been changed!"
 
 
-    # Create new vote
+    # ==============================
+    # CREATE NEW VOTE
+    # ==============================
+
     else:
 
         cursor.execute("""
@@ -245,6 +317,7 @@ def vote(report_id):
             new_vote
         ))
 
+
         message = "Your vote has been recorded!"
 
 
@@ -252,6 +325,7 @@ def vote(report_id):
 
     cursor.close()
     connection.close()
+
 
     return jsonify({
         "message": message
