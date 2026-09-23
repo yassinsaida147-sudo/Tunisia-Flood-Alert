@@ -43,14 +43,14 @@ var voterId = getVoterId();
 
 
 // ==============================
-// LOAD REPORTS
+// LOAD REPORTS WHEN PAGE OPENS
 // ==============================
 
 loadReports();
 
 
 // ==============================
-// CLICK MAP
+// CLICK ON MAP
 // ==============================
 
 map.on('click', function(event) {
@@ -67,7 +67,7 @@ map.on('click', function(event) {
     mapElement.classList.add("fullscreen");
 
 
-    // Update Leaflet size
+    // Update Leaflet map size
     setTimeout(function() {
 
         map.invalidateSize();
@@ -75,12 +75,12 @@ map.on('click', function(event) {
     }, 400);
 
 
-    // Get coordinates
+    // Get clicked coordinates
     var latitude = event.latlng.lat;
     var longitude = event.latlng.lng;
 
 
-    // Report popup
+    // Create report popup
     var reportForm = `
         <div style="text-align: center;">
 
@@ -88,7 +88,9 @@ map.on('click', function(event) {
 
             <br><br>
 
-            <button onclick="createReport(${latitude}, ${longitude})">
+            <button
+                onclick="createReport(${latitude}, ${longitude})"
+            >
                 Create Report
             </button>
 
@@ -144,11 +146,38 @@ function createReport(latitude, longitude) {
 
     .then(data => {
 
-        alert("Report created!");
-
+        // Close the "Create Report" popup
         map.closePopup();
 
+
+        // Load the reports again
         loadReports();
+
+
+        // Wait for the new marker to be created
+        setTimeout(function() {
+
+            // Find the marker we just created
+            var newMarker = reportMarkers.find(function(marker) {
+
+                var position = marker.getLatLng();
+
+                return (
+                    Math.abs(position.lat - latitude) < 0.000001 &&
+                    Math.abs(position.lng - longitude) < 0.000001
+                );
+
+            });
+
+
+            // Automatically open the voting popup
+            if (newMarker) {
+
+                newMarker.openPopup();
+
+            }
+
+        }, 300);
 
     })
 
@@ -175,7 +204,6 @@ function createReport(latitude, longitude) {
 function loadReports() {
 
     // Remove old markers
-
     reportMarkers.forEach(function(marker) {
 
         map.removeLayer(marker);
@@ -185,8 +213,7 @@ function loadReports() {
     reportMarkers = [];
 
 
-    // Get reports
-
+    // Get reports from server
     fetch('/reports')
 
         .then(response => {
@@ -323,11 +350,11 @@ function showReport(report) {
 
 
     // ==============================
-    // POPUP
+    // CREATE POPUP
     // ==============================
 
     var popup = `
-        <div style="text-align: center;">
+        <div style="text-align: center; min-width: 200px;">
 
             <b>${status}</b>
 
@@ -355,6 +382,10 @@ function showReport(report) {
                     background-color: red;
                     color: white;
                     width: 100%;
+                    padding: 12px;
+                    border: none;
+                    border-radius: 8px;
+                    cursor: pointer;
                 "
             >
                 🔴 I see flooding
@@ -368,6 +399,10 @@ function showReport(report) {
                     background-color: green;
                     color: white;
                     width: 100%;
+                    padding: 12px;
+                    border: none;
+                    border-radius: 8px;
+                    cursor: pointer;
                 "
             >
                 🟢 I see it is safe
@@ -382,24 +417,30 @@ function showReport(report) {
     // ==============================
 
     var marker = L.marker(
+
         [
             report.latitude,
             report.longitude
         ],
+
         {
             icon: createMarkerIcon(markerColor)
         }
+
     ).addTo(map);
 
 
     // ==============================
-    // OPEN POPUP WHEN MARKER IS CLICKED
+    // CONNECT POPUP TO MARKER
     // ==============================
 
     marker.bindPopup(popup);
 
 
-    // Save marker
+    // ==============================
+    // SAVE MARKER
+    // ==============================
+
     reportMarkers.push(marker);
 
 }
@@ -445,10 +486,13 @@ function vote(reportId, voteType) {
 
     .then(data => {
 
+        // Show server message
         alert(data.message);
 
-        // Reload reports.
-        // This also updates marker colors.
+
+        // Reload reports
+        // This updates the marker color
+        // and vote counts
 
         loadReports();
 
