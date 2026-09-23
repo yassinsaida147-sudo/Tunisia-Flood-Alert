@@ -6,6 +6,10 @@ from psycopg2.extras import RealDictCursor
 app = Flask(__name__)
 
 
+# ==============================
+# DATABASE CONNECTION
+# ==============================
+
 def get_db():
 
     database_url = os.environ.get("DATABASE_URL")
@@ -19,19 +23,33 @@ def get_db():
     )
 
 
+# ==============================
+# INITIALIZE DATABASE
+# ==============================
+
 def init_db():
 
     connection = get_db()
     cursor = connection.cursor()
 
+    # Reports table
     cursor.execute("""
         CREATE TABLE IF NOT EXISTS reports (
             id SERIAL PRIMARY KEY,
             latitude DOUBLE PRECISION NOT NULL,
-            longitude DOUBLE PRECISION NOT NULL
+            longitude DOUBLE PRECISION NOT NULL,
+            created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
         )
     """)
 
+    # Add created_at to an existing reports table
+    cursor.execute("""
+        ALTER TABLE reports
+        ADD COLUMN IF NOT EXISTS created_at
+        TIMESTAMP DEFAULT CURRENT_TIMESTAMP
+    """)
+
+    # Votes table
     cursor.execute("""
         CREATE TABLE IF NOT EXISTS votes (
             id SERIAL PRIMARY KEY,
@@ -48,11 +66,19 @@ def init_db():
     connection.close()
 
 
+# ==============================
+# HOME PAGE
+# ==============================
+
 @app.route("/")
 def home():
 
     return render_template("index.html")
 
+
+# ==============================
+# GET ALL REPORTS
+# ==============================
 
 @app.route("/reports")
 def get_reports():
@@ -87,7 +113,12 @@ def get_reports():
         LEFT JOIN votes
         ON reports.id = votes.report_id
 
-        GROUP BY reports.id
+        GROUP BY
+            reports.id,
+            reports.latitude,
+            reports.longitude
+
+        ORDER BY reports.created_at DESC
     """)
 
     reports = cursor.fetchall()
@@ -97,6 +128,10 @@ def get_reports():
 
     return jsonify(reports)
 
+
+# ==============================
+# CREATE REPORT
+# ==============================
 
 @app.route("/reports", methods=["POST"])
 def create_report():
@@ -110,8 +145,18 @@ def create_report():
     cursor = connection.cursor()
 
     cursor.execute("""
-        INSERT INTO reports (latitude, longitude)
-        VALUES (%s, %s)
+        INSERT INTO reports (
+            latitude,
+            longitude,
+            created_at
+        )
+
+        VALUES (
+            %s,
+            %s,
+            CURRENT_TIMESTAMP
+        )
+
         RETURNING id
     """, (latitude, longitude))
 
@@ -127,6 +172,10 @@ def create_report():
     })
 
 
+# ==============================
+# VOTE / CHANGE VOTE
+# ==============================
+
 @app.route("/reports/<int:report_id>/vote", methods=["POST"])
 def vote(report_id):
 
@@ -135,28 +184,47 @@ def vote(report_id):
     voter_id = data["voter_id"]
     new_vote = data["vote"]
 
+    # Only allow these two vote types
+    if new_vote not in ["flooded", "safe"]:
+
+        return jsonify({
+            "message": "Invalid vote."
+        }), 400
+
     connection = get_db()
     cursor = connection.cursor()
 
+    # Check if this browser/device already voted
     cursor.execute("""
         SELECT id
+
         FROM votes
+
         WHERE report_id = %s
         AND voter_id = %s
     """, (report_id, voter_id))
 
     existing_vote = cursor.fetchone()
 
+
+    # Change existing vote
     if existing_vote:
 
         cursor.execute("""
             UPDATE votes
+
             SET vote = %s
+
             WHERE id = %s
-        """, (new_vote, existing_vote["id"]))
+        """, (
+            new_vote,
+            existing_vote["id"]
+        ))
 
         message = "Your vote has been changed!"
 
+
+    # Create new vote
     else:
 
         cursor.execute("""
@@ -165,10 +233,20 @@ def vote(report_id):
                 voter_id,
                 vote
             )
-            VALUES (%s, %s, %s)
-        """, (report_id, voter_id, new_vote))
+
+            VALUES (
+                %s,
+                %s,
+                %s
+            )
+        """, (
+            report_id,
+            voter_id,
+            new_vote
+        ))
 
         message = "Your vote has been recorded!"
+
 
     connection.commit()
 
@@ -180,10 +258,18 @@ def vote(report_id):
     })
 
 
-# Create database tables when DATABASE_URL exists
+# ==============================
+# INITIALIZE DATABASE
+# ==============================
+
 if os.environ.get("DATABASE_URL"):
+
     init_db()
 
+
+# ==============================
+# START SERVER
+# ==============================
 
 if __name__ == "__main__":
 
