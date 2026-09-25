@@ -22,7 +22,6 @@ L.tileLayer('https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png', {
 
 var userLocationMarker = null;
 
-
 if (navigator.geolocation) {
 
     navigator.geolocation.getCurrentPosition(
@@ -32,26 +31,18 @@ if (navigator.geolocation) {
             var latitude = position.coords.latitude;
             var longitude = position.coords.longitude;
 
-
-            // Move map to user's location
-
             map.setView(
                 [latitude, longitude],
                 15
             );
 
-
-            // Create user location marker
-
             userLocationMarker = L.marker([
                 latitude,
                 longitude
-            ]).addTo(map);
-
-
-            userLocationMarker
-                .bindPopup("📍 You are here")
-                .openPopup();
+            ])
+            .addTo(map)
+            .bindPopup("📍 You are here")
+            .openPopup();
 
         },
 
@@ -77,17 +68,28 @@ var reportMarkers = [];
 
 
 // ==============================
+// ROUTE VARIABLES
+// ==============================
+
+var routeLayer = null;
+
+var destinationMarker = null;
+
+
+// ==============================
 // CREATE VOTER ID
 // ==============================
 
 function getVoterId() {
 
-    var voterId = localStorage.getItem("voter_id");
+    var voterId =
+        localStorage.getItem("voter_id");
 
 
     if (!voterId) {
 
-        voterId = crypto.randomUUID();
+        voterId =
+            crypto.randomUUID();
 
         localStorage.setItem(
             "voter_id",
@@ -98,6 +100,7 @@ function getVoterId() {
 
 
     return voterId;
+
 }
 
 
@@ -105,7 +108,7 @@ var voterId = getVoterId();
 
 
 // ==============================
-// LOAD REPORTS WHEN PAGE OPENS
+// LOAD REPORTS
 // ==============================
 
 loadReports();
@@ -119,19 +122,29 @@ map.on('click', function(event) {
 
     // Hide header
 
-    var header = document.getElementById("header");
+    var header =
+        document.getElementById("header");
 
-    header.classList.add("hidden");
+    if (header) {
+
+        header.classList.add("hidden");
+
+    }
 
 
     // Make map fullscreen
 
-    var mapElement = document.getElementById("map");
+    var mapElement =
+        document.getElementById("map");
 
-    mapElement.classList.add("fullscreen");
+    if (mapElement) {
+
+        mapElement.classList.add("fullscreen");
+
+    }
 
 
-    // Update Leaflet map size
+    // Update Leaflet
 
     setTimeout(function() {
 
@@ -140,11 +153,13 @@ map.on('click', function(event) {
     }, 400);
 
 
-    // Get coordinates
+    // Coordinates
 
-    var latitude = event.latlng.lat;
+    var latitude =
+        event.latlng.lat;
 
-    var longitude = event.latlng.lng;
+    var longitude =
+        event.latlng.lng;
 
 
     // Create report popup
@@ -158,7 +173,12 @@ map.on('click', function(event) {
             <br><br>
 
             <button
-                onclick="createReport(${latitude}, ${longitude})"
+                onclick="
+                    createReport(
+                        ${latitude},
+                        ${longitude}
+                    )
+                "
             >
                 Create Report
             </button>
@@ -193,7 +213,8 @@ function createReport(latitude, longitude) {
 
         headers: {
 
-            'Content-Type': 'application/json'
+            'Content-Type':
+                'application/json'
 
         },
 
@@ -207,24 +228,24 @@ function createReport(latitude, longitude) {
 
     })
 
-    .then(response => {
+    .then(function(response) {
 
         if (!response.ok) {
 
             throw new Error(
-                "Server error: " + response.status
+                "Server error: " +
+                response.status
             );
 
         }
-
 
         return response.json();
 
     })
 
-    .then(data => {
+    .then(function(data) {
 
-        // Close create-report popup
+        // Close create popup
 
         map.closePopup();
 
@@ -238,35 +259,35 @@ function createReport(latitude, longitude) {
 
         setTimeout(function() {
 
+            var newMarker =
+                reportMarkers.find(
+                    function(marker) {
 
-            // Find the marker we just created
-
-            var newMarker = reportMarkers.find(
-                function(marker) {
-
-                    var position =
-                        marker.getLatLng();
+                        var position =
+                            marker.getLatLng();
 
 
-                    return (
+                        return (
 
-                        Math.abs(
-                            position.lat - latitude
-                        ) < 0.000001
+                            Math.abs(
+                                position.lat -
+                                latitude
+                            ) < 0.000001
 
-                        &&
+                            &&
 
-                        Math.abs(
-                            position.lng - longitude
-                        ) < 0.000001
+                            Math.abs(
+                                position.lng -
+                                longitude
+                            ) < 0.000001
 
-                    );
+                        );
 
-                }
-            );
+                    }
+                );
 
 
-            // Automatically open voting popup
+            // Open voting popup automatically
 
             if (newMarker) {
 
@@ -274,18 +295,16 @@ function createReport(latitude, longitude) {
 
             }
 
-
         }, 300);
 
     })
 
-    .catch(error => {
+    .catch(function(error) {
 
         console.error(
             "Create report error:",
             error
         );
-
 
         alert(
             "Could not create the report."
@@ -302,49 +321,52 @@ function createReport(latitude, longitude) {
 
 function loadReports() {
 
+    // Remove old report markers
 
-    // Remove old markers
+    reportMarkers.forEach(
+        function(marker) {
 
-    reportMarkers.forEach(function(marker) {
+            map.removeLayer(marker);
 
-        map.removeLayer(marker);
-
-    });
+        }
+    );
 
 
     reportMarkers = [];
 
 
-    // Get reports from server
+    // Get reports
 
     fetch('/reports')
 
-        .then(response => {
+        .then(function(response) {
 
             if (!response.ok) {
 
                 throw new Error(
-                    "Server error: " + response.status
+                    "Server error: " +
+                    response.status
                 );
 
             }
-
 
             return response.json();
 
         })
 
-        .then(reports => {
+        .then(function(reports) {
 
-            reports.forEach(function(report) {
+            reports.forEach(
+                function(report) {
 
-                showReport(report);
+                    showReport(report);
 
-            });
+                }
+            );
 
         })
 
-        .catch(error => {
+        .catch(function(error) {
 
             console.error(
                 "Could not load reports:",
@@ -365,7 +387,6 @@ function createMarkerIcon(color) {
     return L.divIcon({
 
         className: "",
-
 
         html: `
 
@@ -388,9 +409,7 @@ function createMarkerIcon(color) {
 
         `,
 
-
         iconSize: [31, 31],
-
 
         iconAnchor: [15, 15]
 
@@ -404,7 +423,6 @@ function createMarkerIcon(color) {
 // ==============================
 
 function showReport(report) {
-
 
     var flooded =
         Number(report.flooded_votes) || 0;
@@ -455,7 +473,7 @@ function showReport(report) {
 
 
     // ==============================
-    // CHOOSE MARKER COLOR
+    // MARKER COLOR
     // ==============================
 
     var markerColor = "gray";
@@ -475,7 +493,7 @@ function showReport(report) {
 
 
     // ==============================
-    // CREATE POPUP
+    // POPUP
     // ==============================
 
     var popup = `
@@ -485,64 +503,48 @@ function showReport(report) {
             min-width: 200px;
         ">
 
-
             <b>${status}</b>
 
-
             <br><br>
-
 
             🔴 Flooded:
             ${flooded}
 
-
             <br>
-
 
             🟢 Safe:
             ${safe}
 
-
             <br>
-
 
             👥 Total votes:
             ${total}
 
-
             <hr>
-
 
             <b>
                 What do you see here?
             </b>
 
-
             <br><br>
-
 
             <button
 
                 onclick="
-                    vote(${report.id}, 'flooded')
+                    vote(
+                        ${report.id},
+                        'flooded'
+                    )
                 "
 
                 style="
-
                     background-color: red;
-
                     color: white;
-
                     width: 100%;
-
                     padding: 12px;
-
                     border: none;
-
                     border-radius: 8px;
-
                     cursor: pointer;
-
                 "
 
             >
@@ -551,32 +553,25 @@ function showReport(report) {
 
             </button>
 
-
             <br><br>
-
 
             <button
 
                 onclick="
-                    vote(${report.id}, 'safe')
+                    vote(
+                        ${report.id},
+                        'safe'
+                    )
                 "
 
                 style="
-
                     background-color: green;
-
                     color: white;
-
                     width: 100%;
-
                     padding: 12px;
-
                     border: none;
-
                     border-radius: 8px;
-
                     cursor: pointer;
-
                 "
 
             >
@@ -584,7 +579,6 @@ function showReport(report) {
                 🟢 I see it is safe
 
             </button>
-
 
         </div>
 
@@ -598,11 +592,8 @@ function showReport(report) {
     var marker = L.marker(
 
         [
-
             report.latitude,
-
             report.longitude
-
         ],
 
         {
@@ -616,15 +607,13 @@ function showReport(report) {
 
 
     // ==============================
-    // CONNECT POPUP
+    // POPUP
     // ==============================
 
     marker.bindPopup(popup);
 
 
-    // ==============================
-    // SAVE MARKER
-    // ==============================
+    // Save marker
 
     reportMarkers.push(marker);
 
@@ -637,13 +626,11 @@ function showReport(report) {
 
 function vote(reportId, voteType) {
 
-
     fetch(
         `/reports/${reportId}/vote`,
         {
 
             method: 'POST',
-
 
             headers: {
 
@@ -651,7 +638,6 @@ function vote(reportId, voteType) {
                     'application/json'
 
             },
-
 
             body: JSON.stringify({
 
@@ -665,52 +651,35 @@ function vote(reportId, voteType) {
 
     )
 
-    .then(response => {
+    .then(function(response) {
 
         if (!response.ok) {
 
             throw new Error(
-                "Server error: " + response.status
+                "Server error: " +
+                response.status
             );
 
         }
-
 
         return response.json();
 
     })
 
-
-    .then(data => {
-
-
-        // Show message
+    .then(function(data) {
 
         alert(data.message);
-
-
-        // Reload reports
-
-        // This updates:
-
-        // 🔴 red marker
-        // 🟢 green marker
-        // ⚪ gray marker
-        // vote counts
 
         loadReports();
 
     })
 
-
-    .catch(error => {
-
+    .catch(function(error) {
 
         console.error(
             "Voting error:",
             error
         );
-
 
         alert(
             "Could not submit your vote."
@@ -719,13 +688,11 @@ function vote(reportId, voteType) {
     });
 
 }
-// ==============================
+
+
+// ======================================================
 // ROUTING
-// ==============================
-
-var routeLayer = null;
-
-var destinationMarker = null;
+// ======================================================
 
 
 // ==============================
@@ -735,19 +702,24 @@ var destinationMarker = null;
 function findRoute() {
 
     var destination =
-        document.getElementById("destination").value.trim();
+        document
+            .getElementById("destination")
+            .value
+            .trim();
 
 
     if (!destination) {
 
-        alert("Please enter a destination.");
+        alert(
+            "Please enter a destination."
+        );
 
         return;
 
     }
 
 
-    // Make sure we have the user's location
+    // Check user location
 
     if (!userLocationMarker) {
 
@@ -761,7 +733,7 @@ function findRoute() {
     }
 
 
-    // User coordinates
+    // User location
 
     var userPosition =
         userLocationMarker.getLatLng();
@@ -770,16 +742,16 @@ function findRoute() {
     var startLat =
         userPosition.lat;
 
-
     var startLng =
         userPosition.lng;
 
 
     // ==============================
-    // GEOCODE DESTINATION
+    // FIND DESTINATION
     // ==============================
 
     fetch(
+
         "https://nominatim.openstreetmap.org/search?" +
 
         "format=json" +
@@ -788,6 +760,7 @@ function findRoute() {
         encodeURIComponent(destination) +
 
         "&limit=1"
+
     )
 
     .then(function(response) {
@@ -797,7 +770,6 @@ function findRoute() {
     })
 
     .then(function(results) {
-
 
         if (results.length === 0) {
 
@@ -817,42 +789,97 @@ function findRoute() {
         var destinationLng =
             Number(results[0].lon);
 
+
+        calculateRoute(
+
+            startLat,
+            startLng,
+
+            destinationLat,
+            destinationLng
+
+        );
+
+    })
+
+    .catch(function(error) {
+
+        console.error(
+            "Geocoding error:",
+            error
+        );
+
+        alert(
+            "Could not find the destination."
+        );
+
+    });
+
+}
+
+
 // ==============================
-// CHECK IF ROUTE PASSES FLOODED AREA
+// CHECK FLOODS ON ROUTE
 // ==============================
 
 function checkFloodsOnRoute(route) {
 
-    var routeCoordinates = route.geometry.coordinates;
+    var routeCoordinates =
+        route.geometry.coordinates;
+
 
     // Check every report marker
-    for (var i = 0; i < reportMarkers.length; i++) {
 
-        var marker = reportMarkers[i];
+    for (
+        var i = 0;
+        i < reportMarkers.length;
+        i++
+    ) {
 
-        var markerElement = marker.getElement();
+        var marker =
+            reportMarkers[i];
+
+
+        var markerElement =
+            marker.getElement();
+
 
         if (!markerElement) {
+
             continue;
+
         }
+
 
         var markerDiv =
             markerElement.querySelector("div");
 
+
         if (!markerDiv) {
+
             continue;
+
         }
 
-        // Get marker color
+
         var color =
             markerDiv.style.backgroundColor;
 
-        // Only red markers are considered flooded
+
+        // Only red markers
+
         if (
-            color !== "red" &&
+
+            color !== "red"
+
+            &&
+
             color !== "rgb(255, 0, 0)"
+
         ) {
+
             continue;
+
         }
 
 
@@ -860,7 +887,8 @@ function checkFloodsOnRoute(route) {
             marker.getLatLng();
 
 
-        // Check points along the route
+        // Check route points
+
         for (
             var j = 0;
             j < routeCoordinates.length;
@@ -870,8 +898,10 @@ function checkFloodsOnRoute(route) {
             var routePoint =
                 routeCoordinates[j];
 
+
             var routeLng =
                 routePoint[0];
+
 
             var routeLat =
                 routePoint[1];
@@ -880,7 +910,10 @@ function checkFloodsOnRoute(route) {
             var distance =
                 map.distance(
 
-                    [routeLat, routeLng],
+                    [
+                        routeLat,
+                        routeLng
+                    ],
 
                     [
                         floodLocation.lat,
@@ -890,7 +923,8 @@ function checkFloodsOnRoute(route) {
                 );
 
 
-            // 500 meters from flooded area
+            // 500 meter warning zone
+
             if (distance <= 500) {
 
                 return true;
@@ -908,7 +942,7 @@ function checkFloodsOnRoute(route) {
 
 
 // ==============================
-// CALCULATE SAFE ROUTE
+// CALCULATE ROUTE
 // ==============================
 
 function calculateRoute(
@@ -920,6 +954,7 @@ function calculateRoute(
     destinationLng
 
 ) {
+
 
     var url =
 
@@ -949,9 +984,17 @@ function calculateRoute(
         .then(function(data) {
 
             if (
-                data.code !== "Ok" ||
-                !data.routes ||
+
+                data.code !== "Ok"
+
+                ||
+
+                !data.routes
+
+                ||
+
                 data.routes.length === 0
+
             ) {
 
                 alert(
@@ -963,9 +1006,9 @@ function calculateRoute(
             }
 
 
-            // ==================================
-            // FIND A ROUTE WITHOUT FLOOD REPORT
-            // ==================================
+            // ==============================
+            // FIND ROUTE WITHOUT FLOOD
+            // ==============================
 
             var selectedRoute = null;
 
@@ -988,56 +1031,67 @@ function calculateRoute(
 
                 if (!hasFlood) {
 
-                    selectedRoute = route;
+                    selectedRoute =
+                        route;
 
                     break;
 
                 }
 
 
-                // Remember flooded route
                 if (!floodedRoute) {
 
-                    floodedRoute = route;
+                    floodedRoute =
+                        route;
 
                 }
 
             }
 
 
-            // ==================================
-            // IF NO ALTERNATIVE IS AVAILABLE
-            // ==================================
+            // ==============================
+            // NO SAFE ALTERNATIVE
+            // ==============================
 
             if (!selectedRoute) {
 
-                selectedRoute = floodedRoute;
+                selectedRoute =
+                    floodedRoute;
 
 
                 alert(
+
                     "⚠️ Warning!\n\n" +
+
                     "All available routes " +
-                    "pass near a community-reported " +
+
+                    "pass near a " +
+
+                    "community-reported " +
+
                     "flooded area."
+
                 );
 
             }
 
 
-            // ==================================
+            // ==============================
             // REMOVE OLD ROUTE
-            // ==================================
+            // ==============================
 
             if (routeLayer) {
 
-                map.removeLayer(routeLayer);
+                map.removeLayer(
+                    routeLayer
+                );
 
             }
 
 
-            // ==================================
+            // ==============================
             // REMOVE OLD DESTINATION
-            // ==================================
+            // ==============================
 
             if (destinationMarker) {
 
@@ -1048,9 +1102,9 @@ function calculateRoute(
             }
 
 
-            // ==================================
-            // CHECK WHETHER ROUTE WAS CHANGED
-            // ==================================
+            // ==============================
+            // CHECK IF ROUTE CHANGED
+            // ==============================
 
             var originalRoute =
                 data.routes[0];
@@ -1063,12 +1117,17 @@ function calculateRoute(
             if (routeChanged) {
 
                 alert(
+
                     "⚠️ Flooded area detected!\n\n" +
+
                     "🔄 An alternative route " +
+
                     "was selected to avoid it."
+
                 );
 
             }
+
             else {
 
                 if (
@@ -1078,17 +1137,27 @@ function calculateRoute(
                 ) {
 
                     alert(
-                        "⚠️ A flooded area was detected " +
-                        "near the available route."
+
+                        "⚠️ A flooded area was " +
+
+                        "detected near the " +
+
+                        "available route."
+
                     );
 
                 }
+
                 else {
 
                     alert(
-                        "✅ Route selected. " +
-                        "No community-reported flooded " +
-                        "areas were detected."
+
+                        "✅ Route selected.\n\n" +
+
+                        "No community-reported " +
+
+                        "flooded areas were detected."
+
                     );
 
                 }
@@ -1096,9 +1165,9 @@ function calculateRoute(
             }
 
 
-            // ==================================
-            // DRAW SELECTED ROUTE
-            // ==================================
+            // ==============================
+            // DRAW ROUTE
+            // ==============================
 
             routeLayer = L.geoJSON(
 
@@ -1121,9 +1190,9 @@ function calculateRoute(
             ).addTo(map);
 
 
-            // ==================================
+            // ==============================
             // DESTINATION MARKER
-            // ==================================
+            // ==============================
 
             destinationMarker =
 
@@ -1142,24 +1211,26 @@ function calculateRoute(
                 );
 
 
-            // ==================================
+            // ==============================
             // FIT MAP TO ROUTE
-            // ==================================
+            // ==============================
 
             map.fitBounds(
 
                 routeLayer.getBounds(),
 
                 {
+
                     padding: [30, 30]
+
                 }
 
             );
 
 
-            // ==================================
+            // ==============================
             // ROUTE INFORMATION
-            // ==================================
+            // ==============================
 
             var distanceKm =
                 selectedRoute.distance / 1000;
@@ -1196,7 +1267,6 @@ function calculateRoute(
                 "Routing error:",
                 error
             );
-
 
             alert(
                 "Could not calculate the route."
