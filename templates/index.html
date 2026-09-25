@@ -2,32 +2,87 @@
 <html lang="en">
 
 <head>
+
     <meta charset="UTF-8">
 
-    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <meta
+        name="viewport"
+        content="width=device-width, initial-scale=1.0"
+    >
 
     <title>Tunisia Flood Alert</title>
+
+
+    <!-- Leaflet CSS -->
 
     <link
         rel="stylesheet"
         href="https://unpkg.com/leaflet@1.9.4/dist/leaflet.css"
     >
 
-    <link rel="stylesheet" href="{{ url_for('static', filename='style.css') }}">
+
+    <!-- Your CSS -->
+
+    <link
+        rel="stylesheet"
+        href="{{ url_for('static', filename='style.css') }}"
+    >
+
 </head>
+
 
 <body>
 
+
+    <!-- HEADER -->
+
     <header id="header">
+
         <h1>🇹🇳 Tunisia Flood Alert</h1>
-        <p>Check dangerous areas before choosing your route.</p>
+
+        <p>
+            Check dangerous areas before choosing your route.
+        </p>
+
     </header>
+
+
+    <!-- ROUTE CONTROLS -->
+
+    <div id="route-controls">
+
+        <input
+            type="text"
+            id="destination"
+            placeholder="Enter destination..."
+        >
+
+        <button onclick="findRoute()">
+            🚗 Find Route
+        </button>
+
+    </div>
+
+
+    <!-- MAP -->
 
     <div id="map"></div>
 
-    <script src="https://unpkg.com/leaflet@1.9.4/dist/leaflet.js"></script>
 
-    <script src="{{ url_for('static', filename='script.js') }}"></script>
+    <!-- LEAFLET -->
+
+    <script
+        src="https://unpkg.com/leaflet@1.9.4/dist/leaflet.js">
+    </script>
+
+
+    <!-- YOUR JAVASCRIPT -->
+
+    <script
+        src="{{ url_for('static', filename='script.js') }}">
+    </script>
+
 
 </body>
+
 </html>
