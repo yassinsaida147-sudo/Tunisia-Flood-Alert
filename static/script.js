@@ -817,39 +817,98 @@ function findRoute() {
         var destinationLng =
             Number(results[0].lon);
 
+// ==============================
+// CHECK IF ROUTE PASSES FLOODED AREA
+// ==============================
 
-        // Calculate route
+function checkFloodsOnRoute(route) {
 
-        calculateRoute(
+    var routeCoordinates = route.geometry.coordinates;
 
-            startLat,
-            startLng,
+    // Check every report marker
+    for (var i = 0; i < reportMarkers.length; i++) {
 
-            destinationLat,
-            destinationLng
+        var marker = reportMarkers[i];
 
-        );
+        var markerElement = marker.getElement();
 
-    })
+        if (!markerElement) {
+            continue;
+        }
 
-    .catch(function(error) {
+        var markerDiv =
+            markerElement.querySelector("div");
 
-        console.error(
-            "Geocoding error:",
-            error
-        );
+        if (!markerDiv) {
+            continue;
+        }
 
-        alert(
-            "Could not find the destination."
-        );
+        // Get marker color
+        var color =
+            markerDiv.style.backgroundColor;
 
-    });
+        // Only red markers are considered flooded
+        if (
+            color !== "red" &&
+            color !== "rgb(255, 0, 0)"
+        ) {
+            continue;
+        }
+
+
+        var floodLocation =
+            marker.getLatLng();
+
+
+        // Check points along the route
+        for (
+            var j = 0;
+            j < routeCoordinates.length;
+            j++
+        ) {
+
+            var routePoint =
+                routeCoordinates[j];
+
+            var routeLng =
+                routePoint[0];
+
+            var routeLat =
+                routePoint[1];
+
+
+            var distance =
+                map.distance(
+
+                    [routeLat, routeLng],
+
+                    [
+                        floodLocation.lat,
+                        floodLocation.lng
+                    ]
+
+                );
+
+
+            // 500 meters from flooded area
+            if (distance <= 500) {
+
+                return true;
+
+            }
+
+        }
+
+    }
+
+
+    return false;
 
 }
 
 
 // ==============================
-// CALCULATE ROUTE
+// CALCULATE SAFE ROUTE
 // ==============================
 
 function calculateRoute(
@@ -862,7 +921,6 @@ function calculateRoute(
 
 ) {
 
-
     var url =
 
         "https://router.project-osrm.org/route/v1/driving/" +
@@ -873,7 +931,11 @@ function calculateRoute(
 
         destinationLng + "," + destinationLat +
 
-        "?overview=full&geometries=geojson";
+        "?overview=full" +
+
+        "&geometries=geojson" +
+
+        "&alternatives=true";
 
 
     fetch(url)
@@ -886,9 +948,9 @@ function calculateRoute(
 
         .then(function(data) {
 
-
             if (
                 data.code !== "Ok" ||
+                !data.routes ||
                 data.routes.length === 0
             ) {
 
@@ -901,11 +963,70 @@ function calculateRoute(
             }
 
 
-            var route =
-                data.routes[0];
+            // ==================================
+            // FIND A ROUTE WITHOUT FLOOD REPORT
+            // ==================================
+
+            var selectedRoute = null;
+
+            var floodedRoute = null;
 
 
-            // Remove old route
+            for (
+                var i = 0;
+                i < data.routes.length;
+                i++
+            ) {
+
+                var route =
+                    data.routes[i];
+
+
+                var hasFlood =
+                    checkFloodsOnRoute(route);
+
+
+                if (!hasFlood) {
+
+                    selectedRoute = route;
+
+                    break;
+
+                }
+
+
+                // Remember flooded route
+                if (!floodedRoute) {
+
+                    floodedRoute = route;
+
+                }
+
+            }
+
+
+            // ==================================
+            // IF NO ALTERNATIVE IS AVAILABLE
+            // ==================================
+
+            if (!selectedRoute) {
+
+                selectedRoute = floodedRoute;
+
+
+                alert(
+                    "⚠️ Warning!\n\n" +
+                    "All available routes " +
+                    "pass near a community-reported " +
+                    "flooded area."
+                );
+
+            }
+
+
+            // ==================================
+            // REMOVE OLD ROUTE
+            // ==================================
 
             if (routeLayer) {
 
@@ -914,7 +1035,9 @@ function calculateRoute(
             }
 
 
-            // Remove old destination marker
+            // ==================================
+            // REMOVE OLD DESTINATION
+            // ==================================
 
             if (destinationMarker) {
 
@@ -925,13 +1048,61 @@ function calculateRoute(
             }
 
 
-            // ==============================
-            // DRAW ROUTE
-            // ==============================
+            // ==================================
+            // CHECK WHETHER ROUTE WAS CHANGED
+            // ==================================
+
+            var originalRoute =
+                data.routes[0];
+
+
+            var routeChanged =
+                selectedRoute !== originalRoute;
+
+
+            if (routeChanged) {
+
+                alert(
+                    "⚠️ Flooded area detected!\n\n" +
+                    "🔄 An alternative route " +
+                    "was selected to avoid it."
+                );
+
+            }
+            else {
+
+                if (
+                    checkFloodsOnRoute(
+                        selectedRoute
+                    )
+                ) {
+
+                    alert(
+                        "⚠️ A flooded area was detected " +
+                        "near the available route."
+                    );
+
+                }
+                else {
+
+                    alert(
+                        "✅ Route selected. " +
+                        "No community-reported flooded " +
+                        "areas were detected."
+                    );
+
+                }
+
+            }
+
+
+            // ==================================
+            // DRAW SELECTED ROUTE
+            // ==================================
 
             routeLayer = L.geoJSON(
 
-                route.geometry,
+                selectedRoute.geometry,
 
                 {
 
@@ -950,11 +1121,12 @@ function calculateRoute(
             ).addTo(map);
 
 
-            // ==============================
+            // ==================================
             // DESTINATION MARKER
-            // ==============================
+            // ==================================
 
             destinationMarker =
+
                 L.marker([
 
                     destinationLat,
@@ -970,67 +1142,50 @@ function calculateRoute(
                 );
 
 
-            // ==============================
+            // ==================================
             // FIT MAP TO ROUTE
-            // ==============================
+            // ==================================
 
             map.fitBounds(
+
                 routeLayer.getBounds(),
+
                 {
                     padding: [30, 30]
                 }
+
             );
 
-            // ==============================
-// CHECK FOR FLOODED AREAS
-// ==============================
 
-var floodDetected =
-    checkFloodsOnRoute(route);
-
-
-if (floodDetected) {
-
-    alert(
-        "⚠️ WARNING!\n\n" +
-        "A community-reported flooded area " +
-        "was detected near your route.\n\n" +
-        "Consider finding an alternative route."
-    );
-
-}
-else {
-
-    alert(
-        "✅ No community-reported flooded areas " +
-        "were detected near this route."
-    );
-
-}
-            // ==============================
+            // ==================================
             // ROUTE INFORMATION
-            // ==============================
+            // ==================================
 
             var distanceKm =
-                route.distance / 1000;
+                selectedRoute.distance / 1000;
 
 
             var durationMinutes =
-                route.duration / 60;
+                selectedRoute.duration / 60;
 
 
-            alert(
+            console.log(
+                "Selected route:",
+                selectedRoute
+            );
 
-                "🚗 Route found!\n\n" +
 
-                "Distance: " +
-                distanceKm.toFixed(1) +
-                " km\n" +
+            console.log(
+                "Distance:",
+                distanceKm,
+                "km"
+            );
 
-                "Estimated time: " +
-                Math.round(durationMinutes) +
-                " minutes"
 
+            console.log(
+                "Duration:",
+                durationMinutes,
+                "minutes"
             );
 
         })
@@ -1042,121 +1197,11 @@ else {
                 error
             );
 
+
             alert(
                 "Could not calculate the route."
             );
 
         });
-
-}
-// ==============================
-// CHECK FLOODS ON ROUTE
-// ==============================
-
-function checkFloodsOnRoute(route) {
-
-    var floodedAreas = [];
-
-    // Check every report marker
-    reportMarkers.forEach(function(marker) {
-
-        var markerElement = marker.getElement();
-
-        // Get marker color
-        if (!markerElement) {
-            return;
-        }
-
-        var markerDiv =
-            markerElement.querySelector("div");
-
-        if (!markerDiv) {
-            return;
-        }
-
-        var color =
-            markerDiv.style.backgroundColor;
-
-        // Only check RED markers
-        if (
-            color === "red" ||
-            color === "rgb(255, 0, 0)"
-        ) {
-
-            floodedAreas.push(
-                marker.getLatLng()
-            );
-
-        }
-
-    });
-
-
-    // No flooded areas
-    if (floodedAreas.length === 0) {
-
-        return false;
-
-    }
-
-
-    // Get route coordinates
-    var routeCoordinates =
-        route.geometry.coordinates;
-
-
-    // Check each flooded area
-    for (
-        var i = 0;
-        i < floodedAreas.length;
-        i++
-    ) {
-
-        var flood =
-            floodedAreas[i];
-
-
-        // Check route points
-        for (
-            var j = 0;
-            j < routeCoordinates.length;
-            j++
-        ) {
-
-            var routePoint =
-                routeCoordinates[j];
-
-
-            var routeLng =
-                routePoint[0];
-
-            var routeLat =
-                routePoint[1];
-
-
-            // Calculate distance
-            var distance =
-                map.distance(
-
-                    [routeLat, routeLng],
-
-                    [flood.lat, flood.lng]
-
-                );
-
-
-            // 500 meters
-            if (distance <= 500) {
-
-                return true;
-
-            }
-
-        }
-
-    }
-
-
-    return false;
 
 }
