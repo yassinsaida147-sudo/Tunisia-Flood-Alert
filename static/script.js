@@ -719,3 +719,308 @@ function vote(reportId, voteType) {
     });
 
 }
+// ==============================
+// ROUTING
+// ==============================
+
+var routeLayer = null;
+
+var destinationMarker = null;
+
+
+// ==============================
+// FIND ROUTE
+// ==============================
+
+function findRoute() {
+
+    var destination =
+        document.getElementById("destination").value.trim();
+
+
+    if (!destination) {
+
+        alert("Please enter a destination.");
+
+        return;
+
+    }
+
+
+    // Make sure we have the user's location
+
+    if (!userLocationMarker) {
+
+        alert(
+            "Your location is not available. " +
+            "Please allow location access."
+        );
+
+        return;
+
+    }
+
+
+    // User coordinates
+
+    var userPosition =
+        userLocationMarker.getLatLng();
+
+
+    var startLat =
+        userPosition.lat;
+
+
+    var startLng =
+        userPosition.lng;
+
+
+    // ==============================
+    // GEOCODE DESTINATION
+    // ==============================
+
+    fetch(
+        "https://nominatim.openstreetmap.org/search?" +
+
+        "format=json" +
+
+        "&q=" +
+        encodeURIComponent(destination) +
+
+        "&limit=1"
+    )
+
+    .then(function(response) {
+
+        return response.json();
+
+    })
+
+    .then(function(results) {
+
+
+        if (results.length === 0) {
+
+            alert(
+                "Destination not found."
+            );
+
+            return;
+
+        }
+
+
+        var destinationLat =
+            Number(results[0].lat);
+
+
+        var destinationLng =
+            Number(results[0].lon);
+
+
+        // Calculate route
+
+        calculateRoute(
+
+            startLat,
+            startLng,
+
+            destinationLat,
+            destinationLng
+
+        );
+
+    })
+
+    .catch(function(error) {
+
+        console.error(
+            "Geocoding error:",
+            error
+        );
+
+        alert(
+            "Could not find the destination."
+        );
+
+    });
+
+}
+
+
+// ==============================
+// CALCULATE ROUTE
+// ==============================
+
+function calculateRoute(
+
+    startLat,
+    startLng,
+
+    destinationLat,
+    destinationLng
+
+) {
+
+
+    var url =
+
+        "https://router.project-osrm.org/route/v1/driving/" +
+
+        startLng + "," + startLat +
+
+        ";" +
+
+        destinationLng + "," + destinationLat +
+
+        "?overview=full&geometries=geojson";
+
+
+    fetch(url)
+
+        .then(function(response) {
+
+            return response.json();
+
+        })
+
+        .then(function(data) {
+
+
+            if (
+                data.code !== "Ok" ||
+                data.routes.length === 0
+            ) {
+
+                alert(
+                    "Could not find a driving route."
+                );
+
+                return;
+
+            }
+
+
+            var route =
+                data.routes[0];
+
+
+            // Remove old route
+
+            if (routeLayer) {
+
+                map.removeLayer(routeLayer);
+
+            }
+
+
+            // Remove old destination marker
+
+            if (destinationMarker) {
+
+                map.removeLayer(
+                    destinationMarker
+                );
+
+            }
+
+
+            // ==============================
+            // DRAW ROUTE
+            // ==============================
+
+            routeLayer = L.geoJSON(
+
+                route.geometry,
+
+                {
+
+                    style: {
+
+                        color: "blue",
+
+                        weight: 6,
+
+                        opacity: 0.8
+
+                    }
+
+                }
+
+            ).addTo(map);
+
+
+            // ==============================
+            // DESTINATION MARKER
+            // ==============================
+
+            destinationMarker =
+                L.marker([
+
+                    destinationLat,
+
+                    destinationLng
+
+                ])
+
+                .addTo(map)
+
+                .bindPopup(
+                    "🏁 Destination"
+                );
+
+
+            // ==============================
+            // FIT MAP TO ROUTE
+            // ==============================
+
+            map.fitBounds(
+                routeLayer.getBounds(),
+                {
+                    padding: [30, 30]
+                }
+            );
+
+
+            // ==============================
+            // ROUTE INFORMATION
+            // ==============================
+
+            var distanceKm =
+                route.distance / 1000;
+
+
+            var durationMinutes =
+                route.duration / 60;
+
+
+            alert(
+
+                "🚗 Route found!\n\n" +
+
+                "Distance: " +
+                distanceKm.toFixed(1) +
+                " km\n" +
+
+                "Estimated time: " +
+                Math.round(durationMinutes) +
+                " minutes"
+
+            );
+
+        })
+
+        .catch(function(error) {
+
+            console.error(
+                "Routing error:",
+                error
+            );
+
+            alert(
+                "Could not calculate the route."
+            );
+
+        });
+
+}
