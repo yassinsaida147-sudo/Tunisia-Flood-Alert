@@ -981,7 +981,32 @@ function calculateRoute(
                 }
             );
 
+            // ==============================
+// CHECK FOR FLOODED AREAS
+// ==============================
 
+var floodDetected =
+    checkFloodsOnRoute(route);
+
+
+if (floodDetected) {
+
+    alert(
+        "⚠️ WARNING!\n\n" +
+        "A community-reported flooded area " +
+        "was detected near your route.\n\n" +
+        "Consider finding an alternative route."
+    );
+
+}
+else {
+
+    alert(
+        "✅ No community-reported flooded areas " +
+        "were detected near this route."
+    );
+
+}
             // ==============================
             // ROUTE INFORMATION
             // ==============================
@@ -1022,5 +1047,116 @@ function calculateRoute(
             );
 
         });
+
+}
+// ==============================
+// CHECK FLOODS ON ROUTE
+// ==============================
+
+function checkFloodsOnRoute(route) {
+
+    var floodedAreas = [];
+
+    // Check every report marker
+    reportMarkers.forEach(function(marker) {
+
+        var markerElement = marker.getElement();
+
+        // Get marker color
+        if (!markerElement) {
+            return;
+        }
+
+        var markerDiv =
+            markerElement.querySelector("div");
+
+        if (!markerDiv) {
+            return;
+        }
+
+        var color =
+            markerDiv.style.backgroundColor;
+
+        // Only check RED markers
+        if (
+            color === "red" ||
+            color === "rgb(255, 0, 0)"
+        ) {
+
+            floodedAreas.push(
+                marker.getLatLng()
+            );
+
+        }
+
+    });
+
+
+    // No flooded areas
+    if (floodedAreas.length === 0) {
+
+        return false;
+
+    }
+
+
+    // Get route coordinates
+    var routeCoordinates =
+        route.geometry.coordinates;
+
+
+    // Check each flooded area
+    for (
+        var i = 0;
+        i < floodedAreas.length;
+        i++
+    ) {
+
+        var flood =
+            floodedAreas[i];
+
+
+        // Check route points
+        for (
+            var j = 0;
+            j < routeCoordinates.length;
+            j++
+        ) {
+
+            var routePoint =
+                routeCoordinates[j];
+
+
+            var routeLng =
+                routePoint[0];
+
+            var routeLat =
+                routePoint[1];
+
+
+            // Calculate distance
+            var distance =
+                map.distance(
+
+                    [routeLat, routeLng],
+
+                    [flood.lat, flood.lng]
+
+                );
+
+
+            // 500 meters
+            if (distance <= 500) {
+
+                return true;
+
+            }
+
+        }
+
+    }
+
+
+    return false;
 
 }
